@@ -69,7 +69,7 @@ def ceil2_num(x):
 # (MSE based and includes merging of histograms across iterations)
 class CumulativeMSEHistogramObserver(torch.ao.quantization.HistogramObserver):
     def __init__(self, *args, range_shrink_percentile=None, fast_mode=False, **kwargs):
-        super().__init__(*args, bins=256, upsample_rate=16, **kwargs)
+        super().__init__(*args, bins=256, **kwargs)
         self.fast_mode = fast_mode
 
     def forward(self, x_orig: torch.Tensor) -> torch.Tensor:
