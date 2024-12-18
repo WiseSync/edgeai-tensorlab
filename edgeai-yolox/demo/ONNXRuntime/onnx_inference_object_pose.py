@@ -13,7 +13,6 @@ from tqdm import tqdm
 
 from object_pose_utils_onnx import get_cuboid_corner, get_camera_matrix, get_class_names, draw_obj_pose, draw_bbox_2d
 
-
 def make_parser():
     parser = argparse.ArgumentParser("onnxruntime inference sample")
     parser.add_argument(
@@ -86,10 +85,10 @@ if __name__ == '__main__':
     so = rt.SessionOptions()
     if args.tidl_delegate:
         compile_options = {
-            "artifacts_folder": "./artifacts",
+            "artifacts_folder": "/workspace/work/edgeai-tensorlab/edgeai-yolox/models/artifacts",
             "tensor_bits": 16,
             "accuracy_level": 1,
-            # "debug_level": 3,
+            "debug_level": 3,
             "advanced_options:calibration_frames": 25,
             "advanced_options:calibration_iterations": 2,
             # "advanced_options:output_feature_16bit_names_list" : "370, 680, 990, 1300",
@@ -99,6 +98,9 @@ if __name__ == '__main__':
             # "add_data_convert_ops" : 3,
         }
         if args.compile:
+            """copy_path = args.model[:-5] + "_opt.onnx"
+            optimize(args.model, copy_path)
+            args.model = copy_path """
             EP_list = ['TIDLCompilationProvider','CPUExecutionProvider']
             compile_options["tidl_tools_path"] = os.environ["TIDL_TOOLS_PATH"]
             os.makedirs(compile_options["artifacts_folder"], exist_ok=True)
@@ -113,7 +115,6 @@ if __name__ == '__main__':
         compile_options = {}
         EP_list = ['CPUExecutionProvider']
         session = rt.InferenceSession(args.model ,providers=EP_list, provider_options=[compile_options], sess_options=so)
-
     for img_index, image_file in pbar:
         if image_file.endswith("png"):
             image_path = os.path.join(args.image_folder, image_file)
@@ -122,9 +123,11 @@ if __name__ == '__main__':
             img = origin_img.transpose((2, 0, 1))
             img = np.ascontiguousarray(img, dtype=np.float32)
             ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
+            print("Running inference on: ", image_path, "index: ", img_index)
             output = session.run(None, ort_inputs)
             if args.compile:
-                if img_index >= compile_options["advanced_options:calibration_frames"]-1:
+                if img_index >= compile_options["advanced_options:calibration_frames"]-1 and False:
+                    print("Out of calibration frames: ",img_index)
                     break
             else:
                 class_to_cuboid = get_cuboid_corner(dataset=args.dataset)
@@ -132,7 +135,8 @@ if __name__ == '__main__':
                 class_names = get_class_names(dataset=args.dataset)
                 dets = output[0]
                 img_2d_od = copy.deepcopy(origin_img)
-
+                dets = dets.squeeze()
+                print("dets shape: ", dets.shape)
                 if dets is not None:
                     draw_bbox_2d(img_2d_od, dets, class_names)
                     draw_obj_pose(origin_img, dets, class_names=class_names, class_to_cuboid=class_to_cuboid, camera_matrix=camera_matrix)
