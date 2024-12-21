@@ -1,6 +1,7 @@
 import os
 import mmcv
 import json
+from mmengine import dump
 
 def merge_jsons(json1, json2, outfile):
     assert os.path.exists(json1), "{} doesn't exist".format(json1)
@@ -27,7 +28,7 @@ def merge_jsons(json1, json2, outfile):
 
     coco_json1["annotations"].extend(coco_json2["annotations"])
     coco_json1["images"].extend(coco_json2["images"])
-    mmcv.dump(coco_json1, outfile)
+    dump(coco_json1, outfile)
 
 
 # if __name__ == "__main__":

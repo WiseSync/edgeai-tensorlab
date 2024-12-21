@@ -56,6 +56,7 @@ def decode_rotation_translation(pose, camera_matrix=None):
     # print("prediction",obj_class, tz)
     tx = ((pose[11] / r_w) - camera_matrix[2]) * tz / camera_matrix[0]
     ty = ((pose[12] / r_h) - camera_matrix[5]) * tz / camera_matrix[4]
+    print(tx, ty, tz)
     rotation_mat = np.concatenate((r1, r2, r3), axis=1)
     rotation_vec, _ = cv2.Rodrigues(np.asarray(rotation_mat, dtype=np.float32))
     translation_vec[0] = tx

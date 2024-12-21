@@ -164,8 +164,9 @@ class Predictor(object):
         img = img.float()
         if self.device == "gpu":
             img = img.cuda()
-            if self.fp16:
-                img = img.half()  # to FP16
+
+        if self.fp16:
+                img = img.half()  # to FP16    
 
         with torch.no_grad():
             t0 = time.time()
@@ -178,6 +179,7 @@ class Predictor(object):
                     self.nmsthre, class_agnostic=True
                 )
             else:
+                print(outputs)
                 outputs = postprocess(
                     outputs, self.num_classes, self.confthre,
                     self.nmsthre, class_agnostic=True
@@ -223,7 +225,7 @@ class Predictor(object):
             cls = output[ind][-1]
             color = colors(cls)
             plot_one_box(output[ind], img_2d, im_cuboid=im_cuboid, im_mask=im_mask, color=color, object_pose=True, label=str(int(cls.numpy())),
-                  cad_models=self.cad_models, camera_matrix=camera_matrix, pose=pose, block_x=0, block_y=0, cls_names=self.cls_names)
+                  cad_models=self.cad_models, camera_matrix=camera_matrix, pose=pose, block_x=0, block_y=0, cls_names=self.cls_names, orig_shape=(img.shape[0], img.shape[1]))
         return [img, img_2d, im_cuboid, im_mask]
 
 

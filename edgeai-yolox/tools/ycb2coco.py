@@ -4,6 +4,7 @@ from tqdm import tqdm
 import json
 import argparse
 from merge_json import merge_jsons
+from mmengine import dump
 
 parser = argparse.ArgumentParser("YCBV2COCO_PARSER")
 parser.add_argument("--datapath", default="./datasets/ycbv", type=str, help="path to ycbv dataset")
@@ -42,13 +43,15 @@ def convert_ycb2coco(split='train', type='real', keyframes=None, datapath="./dat
     for data_folder_idx, data_folder in enumerate(data_folders):
         data_path = os.path.join(basepath, data_folder)
         annotations_gt = dict()
+        has_gt = False
         for f in ('scene_gt_info.json', 'scene_gt.json'):
             path = os.path.join(data_path,  f)
             if os.path.exists(path):
                 print("Loading {}".format(path))
                 with open(path) as foo:
                     annotations_gt[f.split('.')[0]] = json.load(foo)
-
+                    has_gt = True
+        
         if data_folder_idx==0:
             coco = dict()
             coco["images"] = []
@@ -67,15 +70,21 @@ def convert_ycb2coco(split='train', type='real', keyframes=None, datapath="./dat
 
             obj_count = 0
             img_count = 0
+        
+        if not has_gt:
+            print("No GT found for {}".format(data_folder))
+            continue
 
         pbar = tqdm(enumerate(zip(list(annotations_gt['scene_gt'].items()), list(annotations_gt['scene_gt_info'].items()))), total=len(annotations_gt['scene_gt_info']))
+        last_folder = data_folder.split('/')[-1]
+        folder_id = int(last_folder)
         for image_index, objects in pbar:
             objects_gt, objects_gt_info = objects[0], objects[1]
             if type == "real":
                 if keyframes == 'bop':
                     filename = "{:06}".format(int(objects_gt[0])) + '.png'
                 else:
-                    filename = "{:06}".format(image_index+1) + '.png'
+                    filename = "{:06}".format(folder_id*1000+image_index) + '.png'
             elif type == "pbr":
                 filename = "{:06}".format(image_index) + '.jpg'
 
@@ -85,7 +94,7 @@ def convert_ycb2coco(split='train', type='real', keyframes=None, datapath="./dat
                         continue
                 elif image_index%10 != 0:
                     continue
-
+            
             height, width = mmcv.imread(data_path + '/rgb/' + filename).shape[:2]
             image = dict([
                 ("image_folder", data_folder),
@@ -122,7 +131,10 @@ def convert_ycb2coco(split='train', type='real', keyframes=None, datapath="./dat
                     coco["annotations"].append(annotation)
             img_count += 1
         pbar.close()
-    mmcv.dump(coco, outfile)
+    
+    #Save the ccoco json file
+    dump(coco, outfile)
+
     return outfile
 
 if __name__ == "__main__":

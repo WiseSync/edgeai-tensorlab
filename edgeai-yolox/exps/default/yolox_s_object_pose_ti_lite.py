@@ -19,7 +19,7 @@ class Exp(MyExp):
         self.act = "relu"
 
         # ---------------- model config ---------------- #
-        self.num_classes = 15
+        self.num_classes = 21
 
         # ---------------- dataloader config ---------------- #
         # set worker to 4 for shorter dataloader init time
