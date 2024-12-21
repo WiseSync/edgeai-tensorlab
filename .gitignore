@@ -7,3 +7,4 @@ edgeai-benchmark/work_dirs/modelartifcats/*
 edgeai-modelmaker/data/projects/*
 .DS_Store
 edgeai-yolox/models
+edgeai-yolox/demo_output

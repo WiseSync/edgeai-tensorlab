@@ -85,7 +85,7 @@ if __name__ == '__main__':
     so = rt.SessionOptions()
     if args.tidl_delegate:
         compile_options = {
-            "artifacts_folder": "/workspace/work/edgeai-tensorlab/edgeai-yolox/models/artifacts",
+            "artifacts_folder": "/workspace/work/edgeai-tensorlab/edgeai-yolox/models/artifacts/yolox_s_object_pose_ti_lite",
             "tensor_bits": 16,
             "accuracy_level": 1,
             "debug_level": 3,
