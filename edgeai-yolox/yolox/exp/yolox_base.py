@@ -110,6 +110,7 @@ class Exp(BaseExp):
             DataLoader,
             InfiniteSampler,
             MosaicDetection,
+            NuScenesDataset,
             worker_init_reset_seed,
         )
         from yolox.utils import (
@@ -170,6 +171,19 @@ class Exp(BaseExp):
                         hsv_prob=self.hsv_prob),
                     cache=cache_img,
                     human_pose=False,
+                )
+            elif self.data_set == "nuscenes":
+                dataset = NuScenesDataset(
+                    data_dir=self.data_dir,
+                    json_file=self.train_ann,
+                    img_size=self.input_size,
+                    preproc=TrainTransform(
+                        max_labels=50,
+                        flip_prob=self.flip_prob,
+                        hsv_prob=self.hsv_prob,
+                        object_pose=self.object_pose),
+                    cache=cache_img,
+                    object_pose=self.object_pose
                 )
 
         dataset = MosaicDetection(
@@ -292,7 +306,7 @@ class Exp(BaseExp):
         return scheduler
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False, legacy=False):
-        from yolox.data import COCODataset, LMODataset, YCBVDataset, COCOKPTSDataset, ValTransform
+        from yolox.data import COCODataset, LMODataset, YCBVDataset, COCOKPTSDataset, NuScenesDataset,ValTransform
 
         if self.data_set == "coco":
             valdataset = COCODataset(
@@ -330,6 +344,14 @@ class Exp(BaseExp):
                 img_size=self.test_size,
                 preproc=ValTransform(legacy=legacy),
                 human_pose = False
+            )
+        elif self.data_set == "nuscenes":
+            valdataset = NuScenesDataset(
+                data_dir=self.data_dir,
+                json_file=self.val_ann,
+                name="val",
+                img_size=self.test_size,
+                preproc=ValTransform(legacy=legacy),
             )
 
 

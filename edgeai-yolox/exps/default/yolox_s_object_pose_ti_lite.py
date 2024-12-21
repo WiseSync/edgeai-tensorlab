@@ -89,6 +89,7 @@ class Exp(MyExp):
                 DataLoader,
                 InfiniteSampler,
                 MosaicDetection,
+                NuScenesDataset,
                 worker_init_reset_seed,
             )
             from yolox.utils import (
@@ -116,6 +117,19 @@ class Exp(MyExp):
                         )
                 elif self.data_set == "ycbv":
                     dataset = YCBVDataset(
+                            data_dir=self.data_dir,
+                            json_file=self.train_ann,
+                            img_size=self.input_size,
+                            preproc=TrainTransform(
+                                max_labels=50,
+                                flip_prob=self.flip_prob,
+                                hsv_prob=self.hsv_prob,
+                                object_pose=self.object_pose),
+                            cache=cache_img,
+                            object_pose=self.object_pose
+                        )
+                elif self.data_set == "nuscenes":
+                    dataset = NuScenesDataset(
                             data_dir=self.data_dir,
                             json_file=self.train_ann,
                             img_size=self.input_size,

@@ -12,3 +12,4 @@ from .voc import VOCDetection
 from .lmo import LMODataset, CADModelsLM
 from .ycbv import YCBVDataset, CADModelsYCBV
 from .coco_kpts import COCOKPTSDataset
+from .nuscenes import NuScenesDataset, CADModelsNuScenes

@@ -123,6 +123,19 @@ LM_CLASSES = (
      "phone"
 )
 
+NUSCENES_CLASSES = (
+    "car",
+    "truck",
+    "bus",
+    "trailer",
+    "construction_vehicle",
+    "pedestrian",
+    "motorcycle",
+    "bicycle",
+    "traffic_cone",
+    "barrier"
+)
+
 _COLORS = np.array(
     [
         0.000, 0.447, 0.741,

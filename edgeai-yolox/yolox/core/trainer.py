@@ -118,7 +118,7 @@ class Trainer:
         if self.exp.device_type == "cpu":
             outputs = self.model(inps, targets)
         else:
-            with torch.cuda.amp.autocast(enabled=self.amp_training):
+            with torch.amp.autocast('cuda',enabled=self.amp_training):
                 outputs = self.model(inps, targets)
 
         loss = outputs["total_loss"]

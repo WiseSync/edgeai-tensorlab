@@ -16,8 +16,8 @@ from yolox.core import Trainer, launch
 from yolox.exp import get_exp
 from yolox.utils import configure_nccl, configure_omp, get_num_devices
 
-_SUPPORTED_DATASETS = ["coco", "lm", "lmo", "ycbv", "tless", "coco_kpts"]
-_NUM_CLASSES = {"coco":80, "lm":15, "lmo": 8, "ycbv": 21, "tless": 30, "coco_kpts":1}
+_SUPPORTED_DATASETS = ["coco", "lm", "lmo", "ycbv", "tless", "coco_kpts", "nuscenes"]
+_NUM_CLASSES = {"coco":80, "lm":15, "lmo": 8, "ycbv": 21, "tless": 30, "coco_kpts":1, "nuscenes": 10}
 _VAL_ANN = {
     "coco":"instances_val2017.json", 
     "lm":"instances_test.json",
@@ -25,6 +25,7 @@ _VAL_ANN = {
     "ycbv": "instances_test_bop.json",
     "tless": "instances_test_bop.json",
     "coco_kpts": "person_keypoints_val2017.json",
+    "nuscenes": "mini_val.json"
 }
 _TRAIN_ANN = {
     "coco":"instances_train2017.json", 
@@ -33,6 +34,7 @@ _TRAIN_ANN = {
     "ycbv": "instances_train.json",
     "tless": "instances_train.json", #"instances_train.json"
     "coco_kpts": "person_keypoints_train2017.json",
+    "nuscenes": "mini_train.json"
 }
 _SUPPORTED_TASKS = {
     "coco":["2dod"],
@@ -40,7 +42,8 @@ _SUPPORTED_TASKS = {
     "lmo": ["2dod", "object_pose"],
     "ycbv": ["2dod", "object_pose"],
     "tless": ["2dod", "object_pose"],
-    "coco_kpts": ["2dod", "human_pose"]
+    "coco_kpts": ["2dod", "human_pose"],
+    "nuscenes": ["2dod", "object_pose"]
 }
 
 def make_parser():

@@ -64,6 +64,10 @@ class YOLOXObjectPoseHead(nn.Module):
             self.cad_models = CADModelsLM()
         elif "ycbv" in dataset:
             self.cad_models = CADModelsYCBV()
+        elif "nuscenes" in dataset:
+            adds = False
+            adds_z = False
+            logger.info("No CAD models for the NuScenes dataset and disables ADDS")
         self.adds = adds
         self.shape_loss = shape_loss
         self.adds_z = adds_z
@@ -676,7 +680,7 @@ class YOLOXObjectPoseHead(nn.Module):
         if mode == "cpu":
             cls_preds_, obj_preds_ = cls_preds_.cpu(), obj_preds_.cpu()
 
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast('cuda',enabled=False):
             cls_preds_ = (
                 cls_preds_.float().unsqueeze(0).repeat(num_gt, 1, 1).sigmoid_()
                 * obj_preds_.float().unsqueeze(0).repeat(num_gt, 1, 1).sigmoid_()
