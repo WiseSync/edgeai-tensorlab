@@ -4,11 +4,9 @@
 
 import argparse
 import os
-
 import cv2
 import numpy as np
-
-import onnxruntime
+import onnxruntime as rt
 
 from yolox.data.data_augment import preproc as preprocess
 from yolox.data.datasets import COCO_CLASSES
@@ -63,6 +61,17 @@ def make_parser():
     )
     parser.add_argument("--export-det",  action='store_true', help='export the nms part in ONNX model')
 
+    parser.add_argument(
+        "--tidl-delegate",
+         action="store_true",
+         help="use tidl_delegate"
+    )
+    parser.add_argument(
+        "--compile",
+         action="store_true",
+         help="use tidl_delegate and compile"
+    )
+
     return parser
 
 
@@ -72,8 +81,39 @@ if __name__ == '__main__':
     input_shape = tuple(map(int, args.input_shape.split(',')))
     origin_img = cv2.imread(args.image_path)
     img, ratio = preprocess(origin_img, input_shape)
+    prototxt = args.model.replace("onnx", "prototxt")
+    assert os.path.exists(prototxt), "Prototxt not available. Please provide a prototxt {}".format(prototxt)
 
-    session = onnxruntime.InferenceSession(args.model)
+    if args.tidl_delegate:
+        compile_options = {
+            "artifacts_folder": "/workspace/work/edgeai-tensorlab/edgeai-yolox/models/artifacts",
+            "tensor_bits": 8,
+            "accuracy_level": 1,
+            "debug_level": 3,
+            "advanced_options:calibration_frames": 25,
+            "advanced_options:calibration_iterations": 2,
+            # "advanced_options:output_feature_16bit_names_list" : "370, 680, 990, 1300",
+            'object_detection:meta_layers_names_list': prototxt,
+            'object_detection:meta_arch_type': 6
+        }
+        if args.compile:
+            """copy_path = args.model[:-5] + "_opt.onnx"
+            optimize(args.model, copy_path)
+            args.model = copy_path """
+            EP_list = ['TIDLCompilationProvider','CPUExecutionProvider']
+            compile_options["tidl_tools_path"] = os.environ["TIDL_TOOLS_PATH"]
+            os.makedirs(compile_options["artifacts_folder"], exist_ok=True)
+            for root, dirs, files in os.walk(compile_options["artifacts_folder"], topdown=False):
+                [os.remove(os.path.join(root, f)) for f in files]
+                [os.rmdir(os.path.join(root, d)) for d in dirs]
+        else:
+            EP_list = ['TIDLExecutionProvider','CPUExecutionProvider']
+            compile_options["tidl_tools_path"] = ""
+        session = rt.InferenceSession(args.model ,providers=EP_list, provider_options=[compile_options, {}], sess_options=so)
+    else:
+        compile_options = {}
+        EP_list = ['CPUExecutionProvider']
+        session = rt.InferenceSession(args.model ,providers=EP_list, provider_options=[compile_options], sess_options=so)
 
     ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
     output = session.run(None, ort_inputs)
