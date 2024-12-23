@@ -7,7 +7,7 @@ import os
 import cv2
 import numpy as np
 import onnxruntime as rt
-
+from tqdm import tqdm
 from yolox.data.data_augment import preproc as preprocess
 from yolox.data.datasets import COCO_CLASSES
 from yolox.utils import mkdir, multiclass_nms, demo_postprocess, vis
@@ -24,9 +24,9 @@ def make_parser():
     )
     parser.add_argument(
         "-i",
-        "--image_path",
+        "--image-folder",
         type=str,
-        default='test_image.png',
+        default='./test_image/',
         help="Path to your input image.",
     )
     parser.add_argument(
@@ -79,19 +79,19 @@ if __name__ == '__main__':
     args = make_parser().parse_args()
 
     input_shape = tuple(map(int, args.input_shape.split(',')))
-    origin_img = cv2.imread(args.image_path)
-    img, ratio = preprocess(origin_img, input_shape)
     prototxt = args.model.replace("onnx", "prototxt")
     assert os.path.exists(prototxt), "Prototxt not available. Please provide a prototxt {}".format(prototxt)
-
+    image_file_list = sorted(os.listdir(args.image_folder))
+    pbar = tqdm(enumerate(image_file_list), total=len(image_file_list))
+    so = rt.SessionOptions()
     if args.tidl_delegate:
         compile_options = {
-            "artifacts_folder": "/workspace/work/edgeai-tensorlab/edgeai-yolox/models/artifacts",
+            "artifacts_folder": "/workspace/work/edgeai-tensorlab/edgeai-yolox/models/detection/medium/artifacts",
             "tensor_bits": 8,
             "accuracy_level": 1,
             "debug_level": 3,
-            "advanced_options:calibration_frames": 25,
-            "advanced_options:calibration_iterations": 2,
+            "advanced_options:calibration_frames": 50,
+            "advanced_options:calibration_iterations": 50,
             # "advanced_options:output_feature_16bit_names_list" : "370, 680, 990, 1300",
             'object_detection:meta_layers_names_list': prototxt,
             'object_detection:meta_arch_type': 6
@@ -114,39 +114,44 @@ if __name__ == '__main__':
         compile_options = {}
         EP_list = ['CPUExecutionProvider']
         session = rt.InferenceSession(args.model ,providers=EP_list, provider_options=[compile_options], sess_options=so)
+    for img_index, image_file in pbar:
+        if image_file.endswith("jpg"):
+            image_path = os.path.join(args.image_folder, image_file)
+            origin_img = cv2.imread(image_path)
+            img, ratio = preprocess(origin_img, input_shape)
+            ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
+            output = session.run(None, ort_inputs)
+            if not args.export_det:
+                predictions = demo_postprocess(output[0], input_shape, p6=args.with_p6)[0]
 
-    ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
-    output = session.run(None, ort_inputs)
-    if not args.export_det:
-        predictions = demo_postprocess(output[0], input_shape, p6=args.with_p6)[0]
+                boxes = predictions[:, :4]
+                scores = predictions[:, 4:5] * predictions[:, 5:]
 
-        boxes = predictions[:, :4]
-        scores = predictions[:, 4:5] * predictions[:, 5:]
+                boxes_xyxy = np.ones_like(boxes)
+                boxes_xyxy[:, 0] = boxes[:, 0] - boxes[:, 2]/2.
+                boxes_xyxy[:, 1] = boxes[:, 1] - boxes[:, 3]/2.
+                boxes_xyxy[:, 2] = boxes[:, 0] + boxes[:, 2]/2.
+                boxes_xyxy[:, 3] = boxes[:, 1] + boxes[:, 3]/2.
+                boxes_xyxy /= ratio
+                dets = multiclass_nms(boxes_xyxy, scores, nms_thr=0.45, score_thr=0.1)
+            else:
+                dets = output[0]
+                dets = dets.squeeze()
+                dets[:, :4] /= ratio
+            if dets is not None:
+                final_boxes, final_scores, final_cls_inds = dets[:, :4], dets[:, 4], dets[:, 5]
+                origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds,
+                                conf=args.score_thr, class_names=COCO_CLASSES)
 
-        boxes_xyxy = np.ones_like(boxes)
-        boxes_xyxy[:, 0] = boxes[:, 0] - boxes[:, 2]/2.
-        boxes_xyxy[:, 1] = boxes[:, 1] - boxes[:, 3]/2.
-        boxes_xyxy[:, 2] = boxes[:, 0] + boxes[:, 2]/2.
-        boxes_xyxy[:, 3] = boxes[:, 1] + boxes[:, 3]/2.
-        boxes_xyxy /= ratio
-        dets = multiclass_nms(boxes_xyxy, scores, nms_thr=0.45, score_thr=0.1)
-    else:
-        dets = output[0]
-        dets[:, :4] /= ratio
-    if dets is not None:
-        final_boxes, final_scores, final_cls_inds = dets[:, :4], dets[:, 4], dets[:, 5]
-        origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds,
-                         conf=args.score_thr, class_names=COCO_CLASSES)
-
-    mkdir(args.output_dir)
-    output_path = os.path.join(args.output_dir, args.image_path.split("/")[-1])
-    cv2.imwrite(output_path, origin_img)
+            mkdir(args.output_dir)
+            output_path = os.path.join(args.output_dir, image_file.split("/")[-1])
+            cv2.imwrite(output_path, origin_img)
 
 
-    if args.save_txt:  # Write to file in tidl dump format
-        output_txt_path = os.path.join(os.path.dirname(output_path) , os.path.basename(output_path).split('.')[0] + '.txt')
-        for *xyxy, conf, cls in dets.tolist():
-            line = (conf, cls, *xyxy)
-            if conf>args.score_thr:
-                with open(output_txt_path, 'a') as f:
-                    f.write(('%g ' * len(line)).rstrip() % line + '\n')
+            if args.save_txt:  # Write to file in tidl dump format
+                output_txt_path = os.path.join(os.path.dirname(output_path) , os.path.basename(output_path).split('.')[0] + '.txt')
+                for *xyxy, conf, cls in dets.tolist():
+                    line = (conf, cls, *xyxy)
+                    if conf>args.score_thr:
+                        with open(output_txt_path, 'a') as f:
+                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
